@@ -77,7 +77,8 @@ FROM_DATE=$(date -v -"${DAYS}"d +%Y-%m-%d)
 TO_DATE=$(date +%Y-%m-%d)
 
 CATEGORY_CLAUSE=""
-[[ -n "$CATEGORY" ]] && CATEGORY_CLAUSE=" from category \"${CATEGORY}\""
+# Backslash (Trenner verschachtelter Kategorien) für AppleScript-String verdoppeln
+[[ -n "$CATEGORY" ]] && CATEGORY_CLAUSE=" from category \"${CATEGORY//\\/\\\\}\""
 
 echo "Exportiere '${ACCOUNT}'${CATEGORY:+ (Kategorie: ${CATEGORY})} ${FROM_DATE} bis ${TO_DATE} als ${FORMAT} ..."
 
