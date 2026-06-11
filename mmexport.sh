@@ -1,0 +1,107 @@
+#!/bin/bash
+#
+# mmexport.sh — generischer Export von MoneyMoney-Umsätzen (lokale Maschine)
+#
+# Läuft auf dem Rechner, auf dem MoneyMoney installiert ist (AppleScript).
+# MoneyMoney muss laufen und entsperrt sein.
+#
+# Nutzung:
+#   ./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE] [-f xls|csv] [-o ZIELORDNER]
+#   ./mmexport.sh --list        Konten (Name [UUID]) anzeigen
+#
+# Parameter:
+#   -a, --account   Konto: Name, IBAN oder UUID (Pflicht; bei mehrdeutigen Namen UUID nutzen)
+#   -k, --category  Kategorie (optional; verschachtelt mit \ trennen, z. B. "Auto\Tanken")
+#   -t, --text      Textfilter (optional; nur mit -f csv, filtert Zeilen case-insensitive)
+#   -d, --days      Zeitraum: letzte N Tage (Default: 90)
+#   -f, --format    xls (Default) oder csv
+#   -o, --outdir    Zielordner (Default: ./exports neben dem Script)
+#   -l, --list      verfügbare Konten anzeigen
+#   -h, --help      diese Hilfe
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+ACCOUNT=""
+CATEGORY=""
+TEXTFILTER=""
+DAYS=90
+FORMAT="xls"
+OUTDIR="${SCRIPT_DIR}/exports"
+DO_LIST=0
+
+usage() { sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -a|--account)  ACCOUNT="$2"; shift 2 ;;
+    -k|--category) CATEGORY="$2"; shift 2 ;;
+    -t|--text)     TEXTFILTER="$2"; shift 2 ;;
+    -d|--days)     DAYS="$2"; shift 2 ;;
+    -f|--format)   FORMAT="$2"; shift 2 ;;
+    -o|--outdir)   OUTDIR="$2"; shift 2 ;;
+    -l|--list)     DO_LIST=1; shift ;;
+    -h|--help)     usage; exit 0 ;;
+    *) echo "Unbekannter Parameter: $1" >&2; usage; exit 1 ;;
+  esac
+done
+
+if (( DO_LIST )); then
+  echo "Konten in MoneyMoney (Name [UUID]):"
+  osascript -e 'tell application "MoneyMoney" to export accounts' \
+    | plutil -convert json -o - - \
+    | python3 -c 'import json,sys
+def walk(items, depth=0):
+    for it in items:
+        uuid = it.get("uuid", "")
+        print("  " * depth + "- " + it.get("name", "?") + ("  [" + uuid + "]" if uuid else ""))
+        walk(it.get("accounts", []), depth + 1)
+walk(json.load(sys.stdin))'
+  exit 0
+fi
+
+[[ -n "$ACCOUNT" ]] || { echo "FEHLER: Konto fehlt (-a). Konten anzeigen: --list" >&2; exit 1; }
+
+if [[ "$FORMAT" != "xls" && "$FORMAT" != "csv" ]]; then
+  echo "FEHLER: Format muss xls oder csv sein (-f)." >&2; exit 1
+fi
+
+if [[ -n "$TEXTFILTER" && "$FORMAT" != "csv" ]]; then
+  echo "FEHLER: Textfilter (-t) wird nur mit -f csv unterstützt." >&2; exit 1
+fi
+
+[[ "$DAYS" =~ ^[0-9]+$ ]] || { echo "FEHLER: -d erwartet eine Zahl (Tage)." >&2; exit 1; }
+
+FROM_DATE=$(date -v -"${DAYS}"d +%Y-%m-%d)
+TO_DATE=$(date +%Y-%m-%d)
+
+CATEGORY_CLAUSE=""
+[[ -n "$CATEGORY" ]] && CATEGORY_CLAUSE=" from category \"${CATEGORY}\""
+
+echo "Exportiere '${ACCOUNT}'${CATEGORY:+ (Kategorie: ${CATEGORY})} ${FROM_DATE} bis ${TO_DATE} als ${FORMAT} ..."
+
+TMP_FILE=$(osascript <<EOF
+tell application "MoneyMoney"
+  export transactions from account "${ACCOUNT}"${CATEGORY_CLAUSE} from date "${FROM_DATE}" to date "${TO_DATE}" as "${FORMAT}"
+end tell
+EOF
+)
+
+[[ -n "$TMP_FILE" && -f "$TMP_FILE" ]] || { echo "FEHLER: Export fehlgeschlagen (Konto vorhanden? MoneyMoney entsperrt?)" >&2; exit 1; }
+
+mkdir -p "$OUTDIR"
+SAFE_NAME=$(echo "$ACCOUNT" | tr ' /' '__')
+EXT="${TMP_FILE##*.}"
+DEST="${OUTDIR}/Umsaetze_${SAFE_NAME}_${FROM_DATE}_${TO_DATE}.${EXT}"
+
+if [[ -n "$TEXTFILTER" ]]; then
+  # Headerzeile behalten, restliche Zeilen case-insensitive filtern
+  { head -n 1 "$TMP_FILE"; tail -n +2 "$TMP_FILE" | grep -i -- "$TEXTFILTER" || true; } > "$DEST"
+  rm -f "$TMP_FILE"
+  COUNT=$(( $(wc -l < "$DEST") - 1 ))
+  echo "✓ ${DEST} (${COUNT} Umsätze nach Filter '${TEXTFILTER}')"
+else
+  mv "$TMP_FILE" "$DEST"
+  echo "✓ ${DEST}"
+fi
