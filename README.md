@@ -1,9 +1,11 @@
-# MoneyMoneyExport
+# MoneyManager
 
-Generisches Script zum Export von MoneyMoney-Umsätzen auf der lokalen Maschine
-(AppleScript — MoneyMoney muss laufen und entsperrt sein).
+Scripts zum Export von MoneyMoney-Umsätzen nach Excel/CSV.
 
-## Nutzung
+## mmexport.sh — generischer Export (lokal)
+
+Läuft auf dem Rechner, auf dem MoneyMoney installiert ist (nova-hub).
+MoneyMoney muss laufen und entsperrt sein.
 
 ```
 ./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE] [-f xls|csv] [-o ZIELORDNER]
@@ -19,7 +21,7 @@ Generisches Script zum Export von MoneyMoney-Umsätzen auf der lokalen Maschine
 | `-f, --format` | `xls` oder `csv` | `xls` |
 | `-o, --outdir` | Zielordner | `./exports` |
 
-## Beispiele
+Beispiele:
 
 ```
 ./mmexport.sh --list
@@ -28,10 +30,16 @@ Generisches Script zum Export von MoneyMoney-Umsätzen auf der lokalen Maschine
 ./mmexport.sh -a "1b2c3d4e-..." -k "Wohnen" -f csv -t "Stadtwerke"
 ```
 
-Ausgabe: `exports/Umsaetze_<Konto>_<von>_<bis>.<ext>`
+## export_umsaetze.sh — Remote-Export per SSH (nova-w1 ← nova-hub)
+
+Läuft auf nova-w1, startet den Export per SSH auf nova-hub und holt die
+Dateien nach `exports/`. Konfiguration (Konten, Zeitraum, Zielordner) im
+Script-Kopf. Konten mit `./export_umsaetze.sh --list` anzeigen.
+
+Einrichtung: SSH-Key (`ssh-copy-id nova-hub`), beim ersten Lauf
+Automation-Dialog **auf nova-hub** bestätigen.
 
 ## Hinweise
 
 - Bei mehrdeutigen Kontonamen (z. B. "DKB" in mehreren Gruppen) UUID aus `--list` verwenden.
-- Beim ersten Lauf den macOS-Automation-Dialog bestätigen.
-- Remote-Ausführung (z. B. von einem anderen Mac): `ssh user@host 'cd repo && ./mmexport.sh ...'`
+- `exports/` enthält Bankdaten und ist per `.gitignore` vom Repo ausgeschlossen.
