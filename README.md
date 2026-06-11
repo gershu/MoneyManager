@@ -16,7 +16,7 @@ MoneyMoney muss laufen und entsperrt sein.
 |---|---|---|
 | `-a, --account` | Konto: Name, IBAN oder UUID (Pflicht) | — |
 | `-k, --category` | Kategorie, verschachtelt mit `\` (z. B. `"Auto\Tanken"`) | alle |
-| `-t, --text` | Textfilter über alle Spalten, case-insensitive (nur `csv`) | — |
+| `-t, --text` | Textfilter über alle Spalten, case-insensitive | — |
 | `-d, --days` | Zeitraum: letzte N Tage | 90 |
 | `-f, --format` | `xls` oder `csv` | `xls` |
 | `-o, --outdir` | Zielordner | `./exports` |
@@ -42,4 +42,7 @@ Automation-Dialog **auf nova-hub** bestätigen.
 ## Hinweise
 
 - Bei mehrdeutigen Kontonamen (z. B. "DKB" in mehreren Gruppen) UUID aus `--list` verwenden.
+- Textfilter + `xls`: MoneyMoney selbst kann nicht filtern — das Script exportiert intern CSV,
+  filtert und schreibt das Ergebnis als `.xlsx`. Benötigt einmalig `pip3 install openpyxl`.
+  Zellen sind dabei Text (keine Zahlen-/Datumsformate); ungefiltertes `xls` bleibt nativer MoneyMoney-Export.
 - `exports/` enthält Bankdaten und ist per `.gitignore` vom Repo ausgeschlossen.

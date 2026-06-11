@@ -12,7 +12,8 @@
 # Parameter:
 #   -a, --account   Konto: Name, IBAN oder UUID (Pflicht; bei mehrdeutigen Namen UUID nutzen)
 #   -k, --category  Kategorie (optional; verschachtelt mit \ trennen, z. B. "Auto\Tanken")
-#   -t, --text      Textfilter (optional; nur mit -f csv, filtert Zeilen case-insensitive)
+#   -t, --text      Textfilter (optional; case-insensitive über alle Spalten;
+#                   bei xls wird intern csv exportiert und als .xlsx geschrieben → benötigt openpyxl)
 #   -d, --days      Zeitraum: letzte N Tage (Default: 90)
 #   -f, --format    xls (Default) oder csv
 #   -o, --outdir    Zielordner (Default: ./exports neben dem Script)
@@ -67,8 +68,13 @@ if [[ "$FORMAT" != "xls" && "$FORMAT" != "csv" ]]; then
   echo "FEHLER: Format muss xls oder csv sein (-f)." >&2; exit 1
 fi
 
-if [[ -n "$TEXTFILTER" && "$FORMAT" != "csv" ]]; then
-  echo "FEHLER: Textfilter (-t) wird nur mit -f csv unterstützt." >&2; exit 1
+# MoneyMoney kennt keinen Textfilter — gefiltert wird nach dem Export.
+# Bei xls: intern csv exportieren, filtern, als .xlsx schreiben (openpyxl nötig).
+EXPORT_FORMAT="$FORMAT"
+if [[ -n "$TEXTFILTER" && "$FORMAT" == "xls" ]]; then
+  python3 -c 'import openpyxl' 2>/dev/null || {
+    echo "FEHLER: Textfilter mit xls benötigt openpyxl (pip3 install openpyxl) — alternativ -f csv." >&2; exit 1; }
+  EXPORT_FORMAT="csv"
 fi
 
 [[ "$DAYS" =~ ^[0-9]+$ ]] || { echo "FEHLER: -d erwartet eine Zahl (Tage)." >&2; exit 1; }
@@ -84,7 +90,7 @@ echo "Exportiere '${ACCOUNT}'${CATEGORY:+ (Kategorie: ${CATEGORY})} ${FROM_DATE}
 
 TMP_FILE=$(osascript <<EOF
 tell application "MoneyMoney"
-  export transactions from account "${ACCOUNT}"${CATEGORY_CLAUSE} from date "${FROM_DATE}" to date "${TO_DATE}" as "${FORMAT}"
+  export transactions from account "${ACCOUNT}"${CATEGORY_CLAUSE} from date "${FROM_DATE}" to date "${TO_DATE}" as "${EXPORT_FORMAT}"
 end tell
 EOF
 )
@@ -96,7 +102,30 @@ SAFE_NAME=$(echo "$ACCOUNT" | tr ' /' '__')
 EXT="${TMP_FILE##*.}"
 DEST="${OUTDIR}/Umsaetze_${SAFE_NAME}_${FROM_DATE}_${TO_DATE}.${EXT}"
 
-if [[ -n "$TEXTFILTER" ]]; then
+if [[ -n "$TEXTFILTER" && "$FORMAT" == "xls" ]]; then
+  # CSV filtern und als .xlsx schreiben
+  DEST="${OUTDIR}/Umsaetze_${SAFE_NAME}_${FROM_DATE}_${TO_DATE}.xlsx"
+  COUNT=$(python3 - "$TMP_FILE" "$DEST" "$TEXTFILTER" <<'PYEOF'
+import csv, sys
+import openpyxl
+src, dst, needle = sys.argv[1], sys.argv[2], sys.argv[3].lower()
+try:
+    text = open(src, newline="", encoding="utf-8-sig").read()
+except UnicodeDecodeError:
+    text = open(src, newline="", encoding="latin-1").read()
+rows = list(csv.reader(text.splitlines(), delimiter=";"))
+wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Umsätze"
+ws.append(rows[0])
+n = 0
+for r in rows[1:]:
+    if needle in ";".join(r).lower():
+        ws.append(r); n += 1
+wb.save(dst); print(n)
+PYEOF
+  )
+  rm -f "$TMP_FILE"
+  echo "✓ ${DEST} (${COUNT} Umsätze nach Filter '${TEXTFILTER}')"
+elif [[ -n "$TEXTFILTER" ]]; then
   # Headerzeile behalten, restliche Zeilen case-insensitive filtern
   { head -n 1 "$TMP_FILE"; tail -n +2 "$TMP_FILE" | grep -i -- "$TEXTFILTER" || true; } > "$DEST"
   rm -f "$TMP_FILE"
