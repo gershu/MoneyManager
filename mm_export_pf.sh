@@ -77,7 +77,8 @@ import csv, plistlib, sys, datetime
 dest, fmt, account = sys.argv[1], sys.argv[2], sys.argv[3]
 data = plistlib.loads(sys.stdin.buffer.read())
 
-# Wertpapier-Dicts einsammeln; Depotname aus dem umschließenden Container übernehmen
+# Wertpapier-Dicts einsammeln; Depotname steht als accountName an jeder
+# Position, sonst Fallback auf umschließenden Container bzw. -a Parameter
 def collect(node, depot):
     if isinstance(node, list):
         for x in node:
@@ -89,7 +90,7 @@ def collect(node, depot):
             for k in sublists:
                 yield from collect(node[k], d)
         else:
-            yield depot, node
+            yield node.get("accountName") or depot, node
 
 def cell(v):
     if isinstance(v, datetime.datetime):
@@ -104,11 +105,13 @@ rows = list(collect(data, account))
 if not rows:
     sys.exit("Keine Wertpapiere im Export gefunden.")
 
-# Spalten: Depot zuerst, dann Union aller Felder (gängige zuerst)
-preferred = ["name", "isin", "securityNumber", "quantity", "price",
-             "currencyOfPrice", "amount", "currencyOfAmount",
-             "purchasePrice", "currencyOfPurchasePrice", "tradeTimestamp"]
-keys = sorted({k for _, r in rows for k in r}, key=lambda k: (preferred.index(k) if k in preferred else 99, k))
+# Spalten: Depot zuerst, dann Union aller Felder (gängige zuerst);
+# accountName entfällt (steht bereits in der Depot-Spalte)
+preferred = ["name", "isin", "wkn", "symbol", "quantity", "marketPrice",
+             "currency", "marketValue", "purchasePrice", "purchaseValue",
+             "profit", "profitPercent", "assetClass"]
+keys = sorted({k for _, r in rows for k in r if k != "accountName"},
+              key=lambda k: (preferred.index(k) if k in preferred else 99, k))
 header = ["depot"] + keys
 
 if fmt == "csv":
