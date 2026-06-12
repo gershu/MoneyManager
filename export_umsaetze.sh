@@ -69,14 +69,16 @@ check_remote
 if [[ "${1:-}" == "--list" ]]; then
   echo "Konten in MoneyMoney auf ${REMOTE_HOST} (Name [UUID]):"
   remote_osascript 'tell application "MoneyMoney" to export accounts' \
-    | plutil -convert json -o - - \
-    | python3 -c 'import json,sys
+    | python3 -c 'import plistlib, sys
+data = plistlib.loads(sys.stdin.buffer.read())
+items = data if isinstance(data, list) else data.get("accounts", [])
 def walk(items, depth=0):
     for it in items:
+        ind = int(it.get("indentation", depth))
         uuid = it.get("uuid", "")
-        print("  " * depth + "- " + it.get("name", "?") + ("  [" + uuid + "]" if uuid else ""))
+        print("  " * ind + "- " + it.get("name", "?") + ("  [" + uuid + "]" if uuid else ""))
         walk(it.get("accounts", []), depth + 1)
-walk(json.load(sys.stdin))'
+walk(items)'
   exit 0
 fi
 
