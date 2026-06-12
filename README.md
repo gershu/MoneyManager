@@ -37,15 +37,16 @@ Beispiele:
 ## mm_export_pf.sh — Portfolio-Export (lokal)
 
 Exportiert den Wertpapierbestand. MoneyMoney liefert das Portfolio nur als
-Property-List; das Script wandelt sie standardmäßig in CSV um (Spalten = alle
-gelieferten Felder, gängige zuerst).
+Property-List; das Script wandelt sie in `.xlsx` (Default, benötigt openpyxl)
+oder CSV um. Erste Spalte ist der Depotname, danach alle gelieferten Felder
+(gängige zuerst).
 
 ```
-./mm_export_pf.sh [-a DEPOT] [-f csv|plist] [-o ZIELORDNER]
+./mm_export_pf.sh [-a DEPOT] [-f xls|csv|plist] [-o ZIELORDNER]
 ```
 
-Ohne `-a` wird der gesamte Bestand exportiert.
-Ausgabe: `exports/Portfolio_<Depot|Alle>_<Datum>.csv`
+Ohne `-a` wird der gesamte Bestand exportiert (Depotname je Position aus der Plist).
+Ausgabe: `exports/Portfolio_<Depot|Alle>_<Datum>.xlsx`
 
 ## export_umsaetze.sh — Remote-Export per SSH (nova-w1 ← nova-hub)
 
