@@ -34,6 +34,19 @@ Beispiele:
 ./mmexport.sh -a DIBA -s 2026-01-01                   # seit Jahresbeginn
 ```
 
+## mm_export_pf.sh — Portfolio-Export (lokal)
+
+Exportiert den Wertpapierbestand. MoneyMoney liefert das Portfolio nur als
+Property-List; das Script wandelt sie standardmäßig in CSV um (Spalten = alle
+gelieferten Felder, gängige zuerst).
+
+```
+./mm_export_pf.sh [-a DEPOT] [-f csv|plist] [-o ZIELORDNER]
+```
+
+Ohne `-a` wird der gesamte Bestand exportiert.
+Ausgabe: `exports/Portfolio_<Depot|Alle>_<Datum>.csv`
+
 ## export_umsaetze.sh — Remote-Export per SSH (nova-w1 ← nova-hub)
 
 Läuft auf nova-w1, startet den Export per SSH auf nova-hub und holt die
