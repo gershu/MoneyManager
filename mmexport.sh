@@ -6,7 +6,7 @@
 # MoneyMoney muss laufen und entsperrt sein.
 #
 # Nutzung:
-#   ./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE] [-f xls|csv] [-o ZIELORDNER]
+#   ./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE | -s VON [-e BIS]] [-f xls|csv] [-o ZIELORDNER]
 #   ./mmexport.sh --list        Konten (Name [UUID]) anzeigen
 #
 # Parameter:
@@ -14,7 +14,9 @@
 #   -k, --category  Kategorie (optional; verschachtelt mit \ trennen, z. B. "Auto\Tanken")
 #   -t, --text      Textfilter (optional; case-insensitive über alle Spalten;
 #                   bei xls wird intern csv exportiert und als .xlsx geschrieben → benötigt openpyxl)
-#   -d, --days      Zeitraum: letzte N Tage (Default: 90)
+#   -d, --days      Zeitraum: letzte N Tage (Default: 90; wird von -s/-e übersteuert)
+#   -s, --from      Startdatum YYYY-MM-DD (optional; ohne -e: bis heute)
+#   -e, --to        Enddatum YYYY-MM-DD (optional; ohne -s: ab BIS minus -d Tage)
 #   -f, --format    xls (Default) oder csv
 #   -o, --outdir    Zielordner (Default: ./exports neben dem Script)
 #   -l, --list      verfügbare Konten anzeigen
@@ -28,11 +30,13 @@ ACCOUNT=""
 CATEGORY=""
 TEXTFILTER=""
 DAYS=90
+FROM=""
+TO=""
 FORMAT="xls"
 OUTDIR="${SCRIPT_DIR}/exports"
 DO_LIST=0
 
-usage() { sed -n '3,21p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { awk 'NR>2 && /^#/ { sub(/^# ?/, ""); print; next } NR>2 { exit }' "$0"; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +44,8 @@ while [[ $# -gt 0 ]]; do
     -k|--category) CATEGORY="$2"; shift 2 ;;
     -t|--text)     TEXTFILTER="$2"; shift 2 ;;
     -d|--days)     DAYS="$2"; shift 2 ;;
+    -s|--from)     FROM="$2"; shift 2 ;;
+    -e|--to)       TO="$2"; shift 2 ;;
     -f|--format)   FORMAT="$2"; shift 2 ;;
     -o|--outdir)   OUTDIR="$2"; shift 2 ;;
     -l|--list)     DO_LIST=1; shift ;;
@@ -79,8 +85,25 @@ fi
 
 [[ "$DAYS" =~ ^[0-9]+$ ]] || { echo "FEHLER: -d erwartet eine Zahl (Tage)." >&2; exit 1; }
 
-FROM_DATE=$(date -v -"${DAYS}"d +%Y-%m-%d)
-TO_DATE=$(date +%Y-%m-%d)
+# Datum validieren (Format + Kalender-Plausibilität, BSD-date)
+valid_date() {
+  [[ "$1" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+    && [[ "$(date -j -f "%Y-%m-%d" "$1" +%Y-%m-%d 2>/dev/null)" == "$1" ]]
+}
+
+if [[ -n "$FROM" || -n "$TO" ]]; then
+  [[ -z "$TO" ]] && TO=$(date +%Y-%m-%d)
+  for D in "$FROM" "$TO"; do
+    [[ -z "$D" ]] || valid_date "$D" || { echo "FEHLER: Ungültiges Datum '$D' (erwartet YYYY-MM-DD)." >&2; exit 1; }
+  done
+  [[ -z "$FROM" ]] && FROM=$(date -j -v -"${DAYS}"d -f "%Y-%m-%d" "$TO" +%Y-%m-%d)
+  [[ "$FROM" > "$TO" ]] && { echo "FEHLER: VON (${FROM}) liegt nach BIS (${TO})." >&2; exit 1; }
+  FROM_DATE="$FROM"
+  TO_DATE="$TO"
+else
+  FROM_DATE=$(date -v -"${DAYS}"d +%Y-%m-%d)
+  TO_DATE=$(date +%Y-%m-%d)
+fi
 
 CATEGORY_CLAUSE=""
 # Backslash (Trenner verschachtelter Kategorien) für AppleScript-String verdoppeln

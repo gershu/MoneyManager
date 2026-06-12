@@ -8,7 +8,7 @@ Läuft auf dem Rechner, auf dem MoneyMoney installiert ist (nova-hub).
 MoneyMoney muss laufen und entsperrt sein.
 
 ```
-./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE] [-f xls|csv] [-o ZIELORDNER]
+./mmexport.sh -a KONTO [-k KATEGORIE] [-t TEXTFILTER] [-d TAGE | -s VON [-e BIS]] [-f xls|csv] [-o ZIELORDNER]
 ./mmexport.sh --list
 ```
 
@@ -17,7 +17,9 @@ MoneyMoney muss laufen und entsperrt sein.
 | `-a, --account` | Konto: Name, IBAN oder UUID (Pflicht) | — |
 | `-k, --category` | Kategorie, verschachtelt mit `\` (z. B. `"Auto\Tanken"`) | alle |
 | `-t, --text` | Textfilter über alle Spalten, case-insensitive | — |
-| `-d, --days` | Zeitraum: letzte N Tage | 90 |
+| `-d, --days` | Zeitraum: letzte N Tage (wird von `-s`/`-e` übersteuert) | 90 |
+| `-s, --from` | Startdatum `YYYY-MM-DD`; ohne `-e`: bis heute | — |
+| `-e, --to` | Enddatum `YYYY-MM-DD`; ohne `-s`: ab BIS minus `-d` Tage | — |
 | `-f, --format` | `xls` oder `csv` | `xls` |
 | `-o, --outdir` | Zielordner | `./exports` |
 
@@ -28,6 +30,8 @@ Beispiele:
 ./mmexport.sh -a DIBA
 ./mmexport.sh -a comdirect -d 30 -f csv
 ./mmexport.sh -a "1b2c3d4e-..." -k "Wohnen" -f csv -t "Stadtwerke"
+./mmexport.sh -a DIBA -s 2026-01-01 -e 2026-03-31     # 1. Quartal 2026
+./mmexport.sh -a DIBA -s 2026-01-01                   # seit Jahresbeginn
 ```
 
 ## export_umsaetze.sh — Remote-Export per SSH (nova-w1 ← nova-hub)
