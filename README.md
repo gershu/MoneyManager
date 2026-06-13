@@ -4,7 +4,7 @@ Scripts zum Export von MoneyMoney-Umsätzen nach Excel/CSV.
 
 ## mmexport.sh — generischer Export (lokal)
 
-Läuft auf dem Rechner, auf dem MoneyMoney installiert ist (nova-hub).
+Läuft auf dem Rechner, auf dem MoneyMoney installiert ist.
 MoneyMoney muss laufen und entsperrt sein.
 
 ```
