@@ -47,20 +47,3 @@ oder CSV um. Erste Spalte ist der Depotname, danach alle gelieferten Felder
 
 Ohne `-a` wird der gesamte Bestand exportiert (Depotname je Position aus der Plist).
 Ausgabe: `exports/Portfolio_<Depot|Alle>_<Datum>.xlsx`
-
-## export_umsaetze.sh — Remote-Export per SSH (nova-w1 ← nova-hub)
-
-Läuft auf nova-w1, startet den Export per SSH auf nova-hub und holt die
-Dateien nach `exports/`. Konfiguration (Konten, Zeitraum, Zielordner) im
-Script-Kopf. Konten mit `./export_umsaetze.sh --list` anzeigen.
-
-Einrichtung: SSH-Key (`ssh-copy-id nova-hub`), beim ersten Lauf
-Automation-Dialog **auf nova-hub** bestätigen.
-
-## Hinweise
-
-- Bei mehrdeutigen Kontonamen (z. B. "DKB" in mehreren Gruppen) UUID aus `--list` verwenden.
-- Textfilter + `xls`: MoneyMoney selbst kann nicht filtern — das Script exportiert intern CSV,
-  filtert und schreibt das Ergebnis als `.xlsx`. Benötigt einmalig `pip3 install openpyxl`.
-  Zellen sind dabei Text (keine Zahlen-/Datumsformate); ungefiltertes `xls` bleibt nativer MoneyMoney-Export.
-- `exports/` enthält Bankdaten und ist per `.gitignore` vom Repo ausgeschlossen.
